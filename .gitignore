@@ -3,3 +3,5 @@
 *.cache
 .DS_Store
 .idea
+cffi/_cffi_backend.so
+cffi/build
