@@ -149,7 +149,7 @@ Additionally, settings can be overridden in a sublime project file.
 
 
 If autocompletion is not working, pull up the Sublime python
-console (`ctrl+` `) and see if any error messages are reported.
+console (``ctrl+` ``) and see if any error messages are reported.
 
 
 
