@@ -78,6 +78,12 @@ frameworks from autocompletion results (See `exclude_framework_globals` in
 package settings).
 
 
+#### external frameworks
+
+Please provide a list of pathes to external frameworks in settings under
+`frameworks`. These are passed to SourceKitten via compilerargs.
+
+
 ### Settings
 
 See `SwiftKitten.sublime-settings` for more settings and information.
