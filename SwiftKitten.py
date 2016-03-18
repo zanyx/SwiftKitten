@@ -56,6 +56,12 @@ if sys.version_info < (3, 3):
 
 
 
+class AutocompleteRequestError(RuntimeError):
+    def __init__(self,*args,**kwargs):
+        RuntimeError.__init__(self,*args,**kwargs)
+
+
+
 
 class SwiftKittenEventListener(sublime_plugin.EventListener):
     """
@@ -308,11 +314,11 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         # this should not happen, but just in case, do not
         # overload the system with too many requests
         if len(self.current_requests) > self.get_settings(view, "concurrent_request_limit", 4):
-            raise RuntimeError("Request denied: too many concurrent requests.")
+            raise AutocompleteRequestError("Request denied: too many concurrent requests.")
 
         # prevent duplicate requests
         if request in self.current_requests:
-            raise RuntimeError(
+            raise AutocompleteRequestError(
                 "Request denied: completion for \"{request}\" "
                 "already in progress.".format(request=request)
             )
@@ -347,9 +353,8 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
             completions = self._autocomplete_request(view, self.framework_cache,
                 "."+framework, text, len(text), included=included)
         
-        except Exception as e:
-            import traceback
-            self.logger.debug(traceback.format_exc())
+        except AutocompleteRequestError as e:
+            self.logger.debug(e)
         
         else:
             self.framework_cache[framework] = completions
@@ -366,9 +371,8 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
             completions = self._autocomplete_request(view, cache, 
                 stub, text, offset)
 
-        except Exception as e:
-            import traceback
-            self.logger.debug(traceback.format_exc())
+        except AutocompleteRequestError as e:
+            self.logger.debug(e)
         
         else:
             # update cache timestamp if nothing has changed
