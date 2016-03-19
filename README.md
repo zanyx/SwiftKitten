@@ -85,7 +85,7 @@ Sublime's cache folder on saving a view, and is loaded next time SwiftKitten
 is loaded.
 
 
-#### external frameworks
+##### External frameworks
 
 Please provide a list of paths to external frameworks in settings under
 `extra_framework_paths`. These are passed to SourceKitten via compilerargs.
@@ -220,6 +220,9 @@ console (``ctrl+` ``) and see if any error messages are reported.
 	necessary tools to build it. Tried briefly but could
 	not get it to work.
 
-- Add more flexibile options for compilerargs passed to sourcekitten.
 
 
+
+### License
+
+SwiftKitten is MIT licensed.
