@@ -6,19 +6,29 @@
 {
 	/* 
 		Path to SourceKitten binary.
-
 		See `https://github.com/jpsim/SourceKitten`.
 	*/
 	"sourcekitten_binary" : "/usr/local/bin/sourcekitten",
 
 	/*
-		SDK and frameworks to link with.
-		
-		SourceKitten will find the default sdk (OS X) if
-		left blank.
+		sdk to link with. SourceKitten will find the 
+		default sdk (OS X) if left blank.
 	*/
 	"sdk" : "",
-	"frameworks" : [],
+
+	/*
+		Extra framework search paths.
+
+		To enable autocompletion for external frameworks, 
+		add the path to the directory containing the 
+		framework here.
+	*/
+	"extra_framework_paths" : [],
+
+	/*
+		Extra compiler arguments to SourceKitten.
+	*/
+	"extra_compilerargs" : "",
 
 	/*
 		Exclude globals from specific frameworks in auto-

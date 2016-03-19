@@ -69,133 +69,6 @@ class AutocompleteRequestError(RuntimeError):
 
 
 
-class swift_kitten_display_documentation_command(sublime_plugin.TextCommand):
-
-    xml_to_html_tags = {
-        "Name"              : "h3",
-        "Abstract"          : "div",
-        "Protocol"          : "div",
-        "InstanceMethod"    : "div",
-        "SeeAlsos"          : "div",
-        "Discussion"        : "div",
-        "Declaration"       : "div",
-        "Class"             : "div",
-        "Note"              : "div",
-        "Para"              : "p",
-        "SeeAlso"           : "p",
-        "Availability"      : "p",
-        "zModuleImport"     : "p",
-        "zAttributes"       : "p",
-        "Attribute"         : "p",
-        "uAPI"              : "a",
-        "codeVoice"         : "pre",
-        "newTerm"           : "em",
-        "List-Bullet"       : "ul",
-        "Item"              : "li",
-        "AvailabilityItem"  : "em",
-        "InstanceProperty"  : "div",
-        "zCodeLines-ContainerForNumberedLines"       : "pre",
-        "CodeListing"       : "div",
-        "reservedWord"      : "b",
-        "keyWord"           : "span",
-        "Property-ObjC"     : "div",
-        "kConstantName"     : "em",
-        "Structure"         : "div",
-        "Function"          : "div"
-    }
-
-
-    def get_docsetutil_cmd(self, view, docset, query):
-        """
-        """
-        docsetutil_binary = SwiftKittenEventListener.get_settings(view, "docsetutil_binary")
-        return ["/usr/local/bin/docsetutil", "search", "-skip-text", "-query", query, docset]
-
-
-    def get_tokens_path(self, docset):
-        """
-        """
-        return os.path.join(docset, "Contents/Resources/Tokens")
-
-
-    def convert_docs_to_html(self, xml):
-        """
-        """
-        root = ET.fromstring(xml)
-
-        for el in root.iter():
-            el.tag = self.xml_to_html_tags.get(el.tag, el.tag)
-            
-            if el.tag == "a":
-                el.attrib["href"] = el.attrib["url"]
-                del el.attrib["url"]
-
-        return ET.tostring(root, encoding="utf-8")
-
-
-    def run(self, edit):
-        """
-        """
-        view = self.view
-        sel = view.sel()
-
-        if len(sel) == 0:
-            return
-
-        a,b = sel[0]
-        query = view.substr(view.word(a)) if a == b else view.substr(sel[0])
-
-        if query == "":
-            return
-
-        # run docsetutil command
-        docset = SwiftKittenEventListener.get_settings(view, "docset")
-        cmd = self.get_docsetutil_cmd(view, docset, query)
-        results = check_output(cmd, stderr=STDOUT)
-        results = str(results, 'utf-8')
-
-        if len(results) == 0:
-            SwiftKittenEventListener.logger.info("No documentation found.")
-            return
-
-        lines = results.splitlines()
-
-        # split each line into two pathes
-        pairs = map(lambda line: line.strip().split('   '), lines)
-
-        get_lang = lambda a: a.split('/')[0]
-        get_path = lambda a,b: os.path.join(os.path.dirname(a), 
-            os.path.basename(b))
-
-        # 
-        docs = {get_lang(a) : get_path(a,b) for a,b in pairs}
-
-        # prefer Swift, Objective-C, C
-        lang = sorted(docs.keys())[-1]
-
-        # construct path to documentation token
-        path = os.path.join(self.get_tokens_path(docset), docs[lang] + ".xml")
-
-        # read documentation file
-        with open(path, 'rb') as f:
-            xml = f.read()
-
-        # convert xml to html
-        html = str(self.convert_docs_to_html(xml), 'utf-8')
-        
-        #
-        # TO DO:
-        # add on_navigate handler
-        #
-
-        # display documentation
-        view.show_popup(html, max_width=400, max_height=600)
-
-
-
-
-
-
 class SwiftKittenEventListener(sublime_plugin.EventListener):
     """
     """
@@ -219,7 +92,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
 
     # linting
     errors = {}
-    
+
     # idle parameters
     delay = 300
     pending = 0
@@ -233,8 +106,8 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """
         super(SwiftKittenEventListener, self).__init__()
         SwiftKittenEventListener.shared_instance = self
-        self.logger.setLevel(logging.DEBUG)
-        
+        self.logger.setLevel(logging.WARN)
+
 
 
     def handle_timeout(self, view):
@@ -265,8 +138,8 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
                 self.errors[pos] = description
 
             view.add_regions(
-                "swiftkitten.diagnostics", 
-                [Region(pos,pos+1) for pos in self.errors.keys()], 
+                "swiftkitten.diagnostics",
+                [Region(pos,pos+1) for pos in self.errors.keys()],
                 "constant",
                 "",
                 sublime.DRAW_STIPPLED_UNDERLINE | sublime.DRAW_NO_OUTLINE | sublime.DRAW_NO_FILL
@@ -345,10 +218,10 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """Get compiler arguments for SourceKitten command.
         """
         sdk = self.get_settings(view, "sdk")
-        frameworks = self.get_settings(view, "frameworks")
-        compilerargs = "-sdk {sdk} ".format(sdk=sdk) if sdk != "" else ""
-        compilerargs += " ".join(("-framework {framework}"
-            .format(framework=framework) for framework in frameworks))
+        frameworks_paths = self.get_settings(view, "extra_framework_paths")
+        compilerargs = "-sdk " + sdk if sdk != "" else ""
+        compilerargs += " ".join(("-F " + path for path in frameworks_paths))
+        compilerargs += " " + self.get_settings(view, "extra_compilerargs")
         return compilerargs
 
 
@@ -425,7 +298,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """Get completion command.
         """
         cmd = "{sourcekitten_binary} complete --text {text} --offset {offset} --compilerargs -- {compilerargs}"
-        sourcekitten_binary = self.get_settings(view, 
+        sourcekitten_binary = self.get_settings(view,
             "sourcekitten_binary", "sourcekitten")
         compilerargs = self.get_compilerargs(view)
         return cmd.format(
@@ -482,7 +355,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
                 item[value] = next(parser)[2]
 
 
-    def _autocomplete_request(self, view, cache, request, 
+    def _autocomplete_request(self, view, cache, request,
             text, offset, included=lambda item: True):
         """
         """
@@ -527,10 +400,10 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
 
             completions = self._autocomplete_request(view, self.framework_cache,
                 "."+framework, text, len(text), included=included)
-        
+
         except AutocompleteRequestError as e:
             self.logger.debug(e)
-        
+
         else:
             self.framework_cache[framework] = completions
 
@@ -543,12 +416,12 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         sel = view.sel()
 
         try:
-            completions = self._autocomplete_request(view, cache, 
+            completions = self._autocomplete_request(view, cache,
                 stub, text, offset)
 
         except AutocompleteRequestError as e:
             self.logger.debug(e)
-        
+
         else:
             # update cache timestamp if nothing has changed
             if stub in cache and completions == cache[stub]["completions"]:
@@ -577,7 +450,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """
         from pygments.token import Token
         token, value = pair
-        # for literals, autocomplete only depends 
+        # for literals, autocomplete only depends
         # on type of argument, not the value
         if token in [Token.Literal.Number.Float,
                      Token.Literal.Number.Integer,
@@ -625,9 +498,9 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         buffer_id = view.buffer_id()
         sel = view.sel()
 
-        # the offset in completion requests in sourcekitten 
+        # the offset in completion requests in sourcekitten
         # must be made at the start of postfix '.'
-        offset = sel[0].a - len(prefix)  
+        offset = sel[0].a - len(prefix)
 
         if not view.match_selector(offset, "source.swift"):
             return
@@ -653,7 +526,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         cpflags = self.get_completion_flags(view)
 
         # remove import framework statements if stub is empty
-        # and extract framework names. global variables imported 
+        # and extract framework names. global variables imported
         # from frameworks are stored in a separate cache
         if stub == "":
             excluded_frameworks = self.get_settings(view, "exclude_framework_globals", [])
@@ -683,20 +556,10 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         else:
             # request completions
             self._autocomplete_async(view, text, offset, stub, self.query_id)
-        
+
         # return completions
         return (completions, cpflags) if cpflags else completions
 
-
-
-
-class swift_kitten_clear_cache_command(sublime_plugin.TextCommand):
-
-    def run(self, edit):
-        """Manually clear completion cache.
-        """
-        SwiftKittenEventListener.cache = {}
-        SwiftKittenEventListener.framework_cache = {}
 
 
 
@@ -736,7 +599,7 @@ def get_autocomplete_stub(lexer, text):
                 return block_ + block
 
         return block
-                    
+
     return []
 
 
@@ -760,4 +623,149 @@ def get_blocks(tokens):
         if level == 0:
             yield block[::-1]
             block = []
+
+
+
+
+
+
+class swift_kitten_clear_cache_command(sublime_plugin.TextCommand):
+
+    def run(self, edit):
+        """Manually clear completion cache.
+        """
+        SwiftKittenEventListener.cache = {}
+        SwiftKittenEventListener.framework_cache = {}
+
+
+
+
+
+class swift_kitten_display_documentation_command(sublime_plugin.TextCommand):
+
+    xml_to_html_tags = {
+        "Name"              : "h3",
+        "Abstract"          : "div",
+        "Protocol"          : "div",
+        "InstanceMethod"    : "div",
+        "SeeAlsos"          : "div",
+        "Discussion"        : "div",
+        "Declaration"       : "div",
+        "Class"             : "div",
+        "Note"              : "div",
+        "Para"              : "p",
+        "SeeAlso"           : "p",
+        "Availability"      : "p",
+        "zModuleImport"     : "p",
+        "zAttributes"       : "p",
+        "Attribute"         : "p",
+        "uAPI"              : "a",
+        "codeVoice"         : "pre",
+        "newTerm"           : "em",
+        "List-Bullet"       : "ul",
+        "Item"              : "li",
+        "AvailabilityItem"  : "em",
+        "InstanceProperty"  : "div",
+        "CodeListing"       : "div",
+        "reservedWord"      : "b",
+        "keyWord"           : "span",
+        "Property-ObjC"     : "div",
+        "kConstantName"     : "em",
+        "Structure"         : "div",
+        "Function"          : "div",
+        "ClassMethod"       : "div",
+        "ClassProperty"     : "div",
+        "Enumeration"       : "div",
+        "Constant"          : "div"
+    }
+
+
+    def get_docsetutil_cmd(self, view, docset, query):
+        """
+        """
+        docsetutil_binary = SwiftKittenEventListener.get_settings(view, "docsetutil_binary")
+        return ["/usr/local/bin/docsetutil", "search", "-skip-text", "-query", query, docset]
+
+
+    def get_tokens_path(self, docset):
+        """
+        """
+        return os.path.join(docset, "Contents/Resources/Tokens")
+
+
+    def convert_docs_to_html(self, xml):
+        """
+        """
+        root = ET.fromstring(xml)
+
+        for el in root.iter():
+            el.tag = self.xml_to_html_tags.get(el.tag, el.tag)
+
+            if el.tag == "a":
+                if "url" in el.attrib:
+                    el.attrib["href"] = el.attrib["url"]
+                    del el.attrib["url"]
+
+        return ET.tostring(root, encoding="utf-8")
+
+
+    def run(self, edit):
+        """
+        """
+        view = self.view
+        sel = view.sel()
+
+        if len(sel) == 0:
+            return
+
+        a,b = sel[0]
+        query = view.substr(view.word(a)) if a == b else view.substr(sel[0])
+
+        if query == "":
+            return
+
+        # run docsetutil command
+        docset = SwiftKittenEventListener.get_settings(view, "docset")
+        cmd = self.get_docsetutil_cmd(view, docset, query)
+        results = check_output(cmd, stderr=STDOUT)
+        results = str(results, 'utf-8')
+
+        if len(results) == 0:
+            SwiftKittenEventListener.logger.info("No documentation found.")
+            return
+
+        lines = results.splitlines()
+
+        # split each line into two paths
+        pairs = map(lambda line: line.strip().split('   '), lines)
+
+        get_lang = lambda a: a.split('/')[0]
+        get_path = lambda a,b: os.path.join(os.path.dirname(a),
+            os.path.basename(b))
+
+        #
+        docs = {get_lang(a) : get_path(a,b) for a,b in pairs}
+
+        # prefer Swift, Objective-C, C
+        lang = sorted(docs.keys())[-1]
+
+        # construct path to documentation token
+        path = os.path.join(self.get_tokens_path(docset), docs[lang] + ".xml")
+
+        # read documentation file
+        with open(path, 'rb') as f:
+            xml = f.read()
+
+        # convert xml to html
+        html = str(self.convert_docs_to_html(xml), 'utf-8')
+
+        #
+        # TO DO:
+        # add on_navigate handler
+        #
+
+        # display documentation
+        view.show_popup(html, max_width=400, max_height=600)
+
+
 

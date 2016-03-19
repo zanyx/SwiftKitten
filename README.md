@@ -80,15 +80,15 @@ are only needed once and requesting them via SourceKitten can take a while
 frameworks from autocompletion results (See `exclude_framework_globals` in 
 package settings).
 
-*Now*: the framework cached is persistant between sessions. It is saved to
+The framework cache is persistant between sessions. It is saved to
 Sublime's cache folder on saving a view, and is loaded next time SwiftKitten
 is loaded.
 
 
 #### external frameworks
 
-Please provide a list of pathes to external frameworks in settings under
-`frameworks`. These are passed to SourceKitten via compilerargs.
+Please provide a list of paths to external frameworks in settings under
+`extra_framework_paths`. These are passed to SourceKitten via compilerargs.
 
 
 
@@ -118,19 +118,29 @@ Copy this file to `[Packages]/User` to customize the settings.
 {
 	/* 
 		Path to SourceKitten binary.
-
 		See `https://github.com/jpsim/SourceKitten`.
 	*/
 	"sourcekitten_binary" : "/usr/local/bin/sourcekitten",
 
 	/*
-		SDK and frameworks to link with.
-		
-		SourceKitten will find the default sdk (OS X) if
-		left blank.
+		sdk to link with. SourceKitten will find the 
+		default sdk (OS X) if left blank.
 	*/
 	"sdk" : "",
-	"frameworks" : [],
+
+	/*
+		Extra framework search paths.
+
+		To enable autocompletion for external frameworks, 
+		add the path to the directory containing the 
+		framework here.
+	*/
+	"extra_framework_paths" : [],
+
+	/*
+		Extra compiler arguments to SourceKitten.
+	*/
+	"extra_compilerargs" : "",
 
 	/*
 		Exclude globals from specific frameworks in auto-
@@ -179,6 +189,11 @@ Copy this file to `[Packages]/User` to customize the settings.
 
 Additionally, settings can be overridden in a sublime project file.
 
+It is recommended to add the following to user or Swift syntax specific preferences:
+
+```js
+"auto_complete_triggers": [ {"selector": "source.swift", "characters": "."} ]
+```
 
 
 
