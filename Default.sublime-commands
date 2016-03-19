@@ -1,3 +1,4 @@
 [
-	{ "caption": "SwiftKitten: Clear Cache", "command": "swift_kitten_clear_cache" }
+	{ "caption": "SwiftKitten: Clear Cache", "command": "swift_kitten_clear_cache" },
+	{ "caption": "SwiftKitten: Display Documentation", "command": "swift_kitten_display_documentation" }
 ]

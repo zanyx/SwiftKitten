@@ -5,3 +5,5 @@
 .idea
 cffi/_cffi_backend.so
 cffi/build
+SwiftKitten.sublime-project
+SwiftKitten.sublime-workspace

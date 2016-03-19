@@ -51,4 +51,14 @@
     */
 	"suppress_word_completions" : true,
 	"suppress_explicit_completions" : true,
+
+	/*
+		Path to docset.
+
+		Running `ctrl+alt+d` will search the docset for the
+		current word or selection and display the docs in
+		a popup.
+	*/
+	"docsetutil_binary" : "/usr/local/bin/docsetutil",
+	"docset" : "/Applications/Xcode.app/Contents/Developer/Documentation/DocSets/com.apple.adc.documentation.OSX.docset"
 }

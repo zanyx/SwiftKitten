@@ -7,6 +7,8 @@ import logging
 import json
 import uuid
 import subprocess
+import pickle
+import shlex
 from subprocess import STDOUT, check_output, TimeoutExpired
 from subprocess import Popen, PIPE
 import threading
@@ -17,6 +19,9 @@ from sublime import INHIBIT_WORD_COMPLETIONS, INHIBIT_EXPLICIT_COMPLETIONS
 import pygments
 import pygments.lexers
 from pygments.lexers import SwiftLexer
+import xml
+import xml.etree
+from xml.etree import ElementTree as ET
 
 # dependency paths
 package_path = os.path.dirname(__file__)
@@ -45,9 +50,10 @@ if sys.version_info < (3, 3):
 
 
 
-#def plugin_loaded():
-#    """Called directly from sublime on plugin load"""
-#    pass
+def plugin_loaded():
+    """Called directly from sublime on plugin load"""
+    SwiftKittenEventListener._load_framework_cache()
+    pass
 
 
 #def plugin_unloaded():
@@ -59,6 +65,133 @@ if sys.version_info < (3, 3):
 class AutocompleteRequestError(RuntimeError):
     def __init__(self,*args,**kwargs):
         RuntimeError.__init__(self,*args,**kwargs)
+
+
+
+
+class swift_kitten_display_documentation_command(sublime_plugin.TextCommand):
+
+    xml_to_html_tags = {
+        "Name"              : "h3",
+        "Abstract"          : "div",
+        "Protocol"          : "div",
+        "InstanceMethod"    : "div",
+        "SeeAlsos"          : "div",
+        "Discussion"        : "div",
+        "Declaration"       : "div",
+        "Class"             : "div",
+        "Note"              : "div",
+        "Para"              : "p",
+        "SeeAlso"           : "p",
+        "Availability"      : "p",
+        "zModuleImport"     : "p",
+        "zAttributes"       : "p",
+        "Attribute"         : "p",
+        "uAPI"              : "a",
+        "codeVoice"         : "pre",
+        "newTerm"           : "em",
+        "List-Bullet"       : "ul",
+        "Item"              : "li",
+        "AvailabilityItem"  : "em",
+        "InstanceProperty"  : "div",
+        "zCodeLines-ContainerForNumberedLines"       : "pre",
+        "CodeListing"       : "div",
+        "reservedWord"      : "b",
+        "keyWord"           : "span",
+        "Property-ObjC"     : "div",
+        "kConstantName"     : "em",
+        "Structure"         : "div",
+        "Function"          : "div"
+    }
+
+
+    def get_docsetutil_cmd(self, view, docset, query):
+        """
+        """
+        docsetutil_binary = SwiftKittenEventListener.get_settings(view, "docsetutil_binary")
+        return ["/usr/local/bin/docsetutil", "search", "-skip-text", "-query", query, docset]
+
+
+    def get_tokens_path(self, docset):
+        """
+        """
+        return os.path.join(docset, "Contents/Resources/Tokens")
+
+
+    def convert_docs_to_html(self, xml):
+        """
+        """
+        root = ET.fromstring(xml)
+
+        for el in root.iter():
+            el.tag = self.xml_to_html_tags.get(el.tag, el.tag)
+            
+            if el.tag == "a":
+                el.attrib["href"] = el.attrib["url"]
+                del el.attrib["url"]
+
+        return ET.tostring(root, encoding="utf-8")
+
+
+    def run(self, edit):
+        """
+        """
+        view = self.view
+        sel = view.sel()
+
+        if len(sel) == 0:
+            return
+
+        a,b = sel[0]
+        query = view.substr(view.word(a)) if a == b else view.substr(sel[0])
+
+        if query == "":
+            return
+
+        # run docsetutil command
+        docset = SwiftKittenEventListener.get_settings(view, "docset")
+        cmd = self.get_docsetutil_cmd(view, docset, query)
+        results = check_output(cmd, stderr=STDOUT)
+        results = str(results, 'utf-8')
+
+        if len(results) == 0:
+            SwiftKittenEventListener.logger.info("No documentation found.")
+            return
+
+        lines = results.splitlines()
+
+        # split each line into two pathes
+        pairs = map(lambda line: line.strip().split('   '), lines)
+
+        get_lang = lambda a: a.split('/')[0]
+        get_path = lambda a,b: os.path.join(os.path.dirname(a), 
+            os.path.basename(b))
+
+        # 
+        docs = {get_lang(a) : get_path(a,b) for a,b in pairs}
+
+        # prefer Swift, Objective-C, C
+        lang = sorted(docs.keys())[-1]
+
+        # construct path to documentation token
+        path = os.path.join(self.get_tokens_path(docset), docs[lang] + ".xml")
+
+        # read documentation file
+        with open(path, 'rb') as f:
+            xml = f.read()
+
+        # convert xml to html
+        html = str(self.convert_docs_to_html(xml), 'utf-8')
+        
+        #
+        # TO DO:
+        # add on_navigate handler
+        #
+
+        # display documentation
+        view.show_popup(html, max_width=400, max_height=600)
+
+
 
 
 
@@ -95,13 +228,13 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
     lexer = SwiftLexer()
 
 
-
     def __init__(self):
         """
         """
         super(SwiftKittenEventListener, self).__init__()
         SwiftKittenEventListener.shared_instance = self
-        self.logger.setLevel(logging.WARN)
+        self.logger.setLevel(logging.DEBUG)
+        
 
 
     def handle_timeout(self, view):
@@ -159,6 +292,16 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         def handle_timeout():
             self.handle_timeout(view)
         sublime.set_timeout_async(handle_timeout, self.delay)
+
+
+    def on_post_save_async(self, view):
+        """
+        """
+        sel = view.sel()
+        if not view.match_selector(sel[0].a, "source.swift"):
+            return
+
+        self._save_framework_cache()
 
 
     def _update_linting_status(self, view):
@@ -234,6 +377,40 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         return [description + '\t' + hint, snippet]
 
 
+    @classmethod
+    def _get_cache_path(cls):
+        """
+        """
+        return os.path.join(sublime.cache_path(), "SwiftKitten")
+
+
+    @classmethod
+    def _load_framework_cache(cls):
+        """
+        """
+        framework_cache_path = os.path.join(cls._get_cache_path(), "frameworks.cache")
+
+        if os.path.exists(framework_cache_path):
+            with open(framework_cache_path, 'rb') as f:
+                cls.framework_cache = pickle.load(f)
+
+
+    @classmethod
+    def _save_framework_cache(cls):
+        """
+        """
+        cache_path = cls._get_cache_path()
+
+        if not os.path.exists(cache_path):
+            os.mkdir(cache_path)
+
+        framework_cache_path = os.path.join(cache_path, "frameworks.cache")
+
+        with open(framework_cache_path, 'wb') as f:
+            pickle.dump(cls.framework_cache, f)
+
+
+    @classmethod
     def get_settings(self, view, key, default=None):
         """Get user settings for key.
 
@@ -247,7 +424,6 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
     def get_completion_cmd(self, view, text, offset):
         """Get completion command.
         """
-        import shlex
         cmd = "{sourcekitten_binary} complete --text {text} --offset {offset} --compilerargs -- {compilerargs}"
         sourcekitten_binary = self.get_settings(view, 
             "sourcekitten_binary", "sourcekitten")
@@ -263,7 +439,6 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
     def get_structure_info_cmd(self, view, text):
         """Get structure info command.
         """
-        import shlex
         cmd = "{sourcekitten_binary} structure --text {text}"
         sourcekitten_binary = self.get_settings(view,
             "sourcekitten_binary", "sourcekitten")

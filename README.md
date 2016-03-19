@@ -15,6 +15,8 @@ free to fork and submit a pull request.
 
 ### Installation
 
+First, make sure to install [SourceKitten](https://github.com/jpsim/SourceKitten.git) !
+
 SwiftKitten is not yet available via Package Control (soon hopefully).
 
 To install manually, clone this repository into your packages directory:
@@ -23,6 +25,7 @@ To install manually, clone this repository into your packages directory:
 
 In Sublime, run `Preferences: Browse Packages`  from the command palette 
 to find your packages directory. 
+
 
 ### Dependencies
 
@@ -64,7 +67,7 @@ cache timeout of one second ensures you will always be shown up-to-date results,
 while preventing a barrage of unnecessary requests to SourceKitten.
 
 To clear the cache manually, run `SwiftKitten: Clear Cache` from the command
-palette.
+palette (this clears the framework cache also).
 
 
 
@@ -77,6 +80,10 @@ are only needed once and requesting them via SourceKitten can take a while
 frameworks from autocompletion results (See `exclude_framework_globals` in 
 package settings).
 
+*Now*: the framework cached is persistant between sessions. It is saved to
+Sublime's cache folder on saving a view, and is loaded next time SwiftKitten
+is loaded.
+
 
 #### external frameworks
 
@@ -84,10 +91,23 @@ Please provide a list of pathes to external frameworks in settings under
 `frameworks`. These are passed to SourceKitten via compilerargs.
 
 
+
+
+### Documentation [experimental]
+
+Running `SwiftKitten: Display Documentation` from the command palette,
+or by pressing `ctrl+alt+d` will search a docset (path specified in settings)
+via _docsetutil_ and display the most relevant entry in an html popup.
+
+
+![](docdemo.gif)
+
+
 ### Settings
 
 See `SwiftKitten.sublime-settings` for more settings and information.
 Copy this file to `[Packages]/User` to customize the settings.
+
 
 ```js
 /*
@@ -143,8 +163,19 @@ Copy this file to `[Packages]/User` to customize the settings.
     */
 	"suppress_word_completions" : true,
 	"suppress_explicit_completions" : true,
+
+	/*
+		Path to docset.
+
+		Running `ctrl+alt+d` will search the docset for the
+		current word or selection and display the docs in
+		a popup.
+	*/
+	"docsetutil_binary" : "/usr/local/bin/docsetutil",
+	"docset" : "/Applications/Xcode.app/Contents/Developer/Documentation/DocSets/com.apple.adc.documentation.OSX.docset"
 }
 ```
+
 
 Additionally, settings can be overridden in a sublime project file.
 
@@ -163,27 +194,8 @@ console (``ctrl+` ``) and see if any error messages are reported.
 ### TO DO
 
 
-- Add support for multi-file projects/modules. Be able to
-	specify a swift module and embedded frameworks in a sublime project file.
-	Then one could add a build system for the swift module, e.g.
-
-	```js
-	"build_systems":
-	[
-		{
-			"name": "Swift: Project",
-			"selector": "source.swift",
-			"shell_cmd": "swiftc -sdk {sdk} ... main.swift",
-			"variants":
-			[
-				{
-					"name": "Run",
-					"shell_cmd": "./main"
-				}
-			]
-		}
-	]
-	```
+- Add support for multi-file projects/modules (e.g. specified in
+	a sublime project file).
 
 - Parse Xcode project to get file list and embedded frameworks 
 	(similiar to SourceKittenDaemon).
@@ -193,6 +205,6 @@ console (``ctrl+` ``) and see if any error messages are reported.
 	necessary tools to build it. Tried briefly but could
 	not get it to work.
 
-- Add settings option for extra compiler arguments.
+- Add more flexibile options for compilerargs passed to sourcekitten.
 
 
