@@ -492,6 +492,12 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         return frameworks, text
 
 
+    def _match_prefix(self, prefix, item):
+        """
+        """
+        return item[0].startswith(prefix)
+
+
     def on_query_completions(self, view, prefix, locations):
         """Sublime autocomplete query.
         """
@@ -530,13 +536,15 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         # from frameworks are stored in a separate cache
         if stub == "":
             excluded_frameworks = self.get_settings(view, "exclude_framework_globals", [])
+            match_prefix = functools.partial(self._match_prefix, prefix)
 
             frameworks, text = self._extract_frameworks(view, text)
 
             for framework in frameworks:
                 if framework not in excluded_frameworks:
                     if framework in self.framework_cache:
-                        completions += self.framework_cache[framework]
+                        # disable fuzzy matching for globals
+                        completions += filter(match_prefix, self.framework_cache[framework])
                     else:
                         self._autocomplete_framework_async(view, framework)
 
