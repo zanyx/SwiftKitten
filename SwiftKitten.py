@@ -39,14 +39,14 @@ try:
     import ijson.backends.yajl2_cffi as ijson
 except:
     # pure python backend
-    logging.warning("failed to import yajl2_cffi backend for ijson. reverting to pure python backend.")
+    logging.warning("Failed to import yajl2_cffi backend for ijson.")
     import ijson
 
 
 
 # check Sublime version
 if sys.version_info < (3, 3):
-    raise ImportError('SwiftKitten requires Sublime Text 3')
+    raise ImportError("SwiftKitten requires Sublime Text 3")
 
 
 
@@ -68,13 +68,12 @@ class AutocompleteRequestError(RuntimeError):
 
 
 
-
 class SwiftKittenEventListener(sublime_plugin.EventListener):
     """
     """
 
     # regexes for formatting function args in completion request
-    prog = re.compile(r'<#T##(.+?)#>')
+    prog = re.compile(r"<#T##(.+?)#>")
     arg_prog = re.compile(r"##.+")
 
     # cache of completion data
@@ -86,9 +85,6 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
 
     # number of concurrent completion requests
     current_requests = set()
-
-    # logging
-    logger = logging.getLogger('SwiftKitten')
 
     # linting
     errors = {}
@@ -106,8 +102,6 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """
         super(SwiftKittenEventListener, self).__init__()
         SwiftKittenEventListener.shared_instance = self
-        self.logger.setLevel(logging.WARN)
-
 
 
     def handle_timeout(self, view):
@@ -125,14 +119,14 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         linting = self.get_settings(view, "linting", True)
 
         # linting
-        if linting and 'key.diagnostics' in structure_info:
-            diagnostics = structure_info['key.diagnostics']
+        if linting and "key.diagnostics" in structure_info:
+            diagnostics = structure_info["key.diagnostics"]
             self.errors = {}
 
             for entry in diagnostics:
-                description = entry['key.description']
+                description = entry["key.description"]
                 #level = entry['key.severity']
-                row, col = entry['key.line'], entry['key.column']
+                row, col = entry["key.line"], entry["key.column"]
                 pos = view.text_point(row-1,col-1)
 
                 self.errors[pos] = description
@@ -205,10 +199,10 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """
         cpflags = False
 
-        if self.get_settings(view, 'suppress_word_completions', False):
+        if self.get_settings(view, "suppress_word_completions", False):
             cpflags = INHIBIT_WORD_COMPLETIONS
 
-        if self.get_settings(view, 'suppress_explicit_completions', False):
+        if self.get_settings(view, "suppress_explicit_completions", False):
             cpflags |= INHIBIT_EXPLICIT_COMPLETIONS
 
         return cpflags
@@ -244,9 +238,10 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
     def _format_completion(self, entry):
         """
         """
-        description = entry['descriptionKey']
-        hint = entry['docBrief'] if 'docBrief' in entry else entry['typeName']
-        snippet = self._format_snippet(entry['sourcetext'])
+        description = entry["descriptionKey"]
+        hint = entry["docBrief"] if "docBrief" in entry else entry["typeName"]
+        snippet = self._format_snippet(entry["sourcetext"]).strip(".")
+        #snippet = json.dumps(entry)
         return [description + '\t' + hint, snippet]
 
 
@@ -264,7 +259,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         framework_cache_path = os.path.join(cls._get_cache_path(), "frameworks.cache")
 
         if os.path.exists(framework_cache_path):
-            with open(framework_cache_path, 'rb') as f:
+            with open(framework_cache_path, "rb") as f:
                 cls.framework_cache = pickle.load(f)
 
 
@@ -279,7 +274,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
 
         framework_cache_path = os.path.join(cache_path, "frameworks.cache")
 
-        with open(framework_cache_path, 'wb') as f:
+        with open(framework_cache_path, "wb") as f:
             pickle.dump(cls.framework_cache, f)
 
 
@@ -289,7 +284,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
 
         Combine SwiftKitten package settings with project settings
         """
-        settings = load_settings('SwiftKitten.sublime-settings')
+        settings = load_settings("SwiftKitten.sublime-settings")
         project_data = view.window().project_data()
         return project_data.get(key, settings.get(key, default))
 
@@ -395,14 +390,14 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
             text = "import " + framework + "; "
 
             def included(item):
-                return item['context'] == 'source.codecompletion.context.othermodule' and \
-                       item['moduleName'] != 'Swift'
+                return item["context"] == "source.codecompletion.context.othermodule" and \
+                       item["moduleName"] != "Swift"
 
             completions = self._autocomplete_request(view, self.framework_cache,
                 "."+framework, text, len(text), included=included)
 
         except AutocompleteRequestError as e:
-            self.logger.debug(e)
+            print(e)
 
         else:
             self.framework_cache[framework] = completions
@@ -420,12 +415,12 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
                 stub, text, offset)
 
         except AutocompleteRequestError as e:
-            self.logger.debug(e)
+            print(e)
 
         else:
             # update cache timestamp if nothing has changed
             if stub in cache and completions == cache[stub]["completions"]:
-                cache["timestamp"] = time.time()
+                cache[stub]["timestamp"] = time.time()
                 return
 
             # cache completions for this buffer associated with stub
@@ -438,10 +433,10 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
             if self.query_id == query_id:
                 view.run_command("hide_auto_complete")
                 view.run_command("auto_complete", {
-                    'disable_auto_insert': True,
-                    'api_completions_only': False,
-                    'next_completion_if_showing': False,
-                    'auto_complete_commit_on_tab': True,
+                    "disable_auto_insert": True,
+                    "api_completions_only": False,
+                    "next_completion_if_showing": False,
+                    "auto_complete_commit_on_tab": True,
                 })
 
 
@@ -503,13 +498,14 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         """
         buffer_id = view.buffer_id()
         sel = view.sel()
+        pos = sel[0].a
+
+        if not view.match_selector(pos, "source.swift"):
+            return
 
         # the offset in completion requests in sourcekitten
         # must be made at the start of postfix '.'
-        offset = sel[0].a - len(prefix)
-
-        if not view.match_selector(offset, "source.swift"):
-            return
+        offset = pos - len(prefix)
 
         if buffer_id not in self.cache:
             self.cache[buffer_id] = {}  # initalize cache for buffer
@@ -537,11 +533,11 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
         if stub == "":
             excluded_frameworks = self.get_settings(view, "exclude_framework_globals", [])
             match_prefix = functools.partial(self._match_prefix, prefix)
-
             frameworks, text = self._extract_frameworks(view, text)
 
             for framework in frameworks:
                 if framework not in excluded_frameworks:
+
                     if framework in self.framework_cache:
                         # disable fuzzy matching for globals
                         completions += filter(match_prefix, self.framework_cache[framework])
@@ -555,7 +551,7 @@ class SwiftKittenEventListener(sublime_plugin.EventListener):
             # check timestamp
             now = time.time()
             timestamp = self.cache[buffer_id][stub]["timestamp"]
-            cache_timeout = self.get_settings(view, "cache_timeout", 600.0)
+            cache_timeout = self.get_settings(view, "cache_timeout", 1.0)
 
             # if cached completion data still valid, do not make request
             if (now - timestamp) > cache_timeout:
@@ -597,10 +593,10 @@ def get_autocomplete_stub(lexer, text):
     blocks = get_blocks(tokens)
     block = next(blocks, [])
 
-    if len(block) == 1 and block[0][1] == '.':
+    if len(block) == 1 and block[0][1] == ".":
         block = next(blocks, [])
 
-        if len(block) > 0 and block[0][1] == '(':
+        if len(block) > 0 and block[0][1] == "(":
             block_ = next(blocks, [])
 
             if len(block_) == 1 and block[0][0] is Token.Name:
@@ -623,9 +619,9 @@ def get_blocks(tokens):
     for token, value in tokens:
         block.append((token,value))
 
-        if value == ')':
+        if value == ")":
             level += 1
-        elif value == '(':
+        elif value == "(":
             level -= 1
 
         if level == 0:
@@ -739,13 +735,13 @@ class swift_kitten_display_documentation_command(sublime_plugin.TextCommand):
         results = str(results, 'utf-8')
 
         if len(results) == 0:
-            SwiftKittenEventListener.logger.info("No documentation found.")
+            print("No documentation found.")
             return
 
         lines = results.splitlines()
 
         # split each line into two paths
-        pairs = map(lambda line: line.strip().split('   '), lines)
+        pairs = map(lambda line: line.strip().split("   "), lines)
 
         get_lang = lambda a: a.split('/')[0]
         get_path = lambda a,b: os.path.join(os.path.dirname(a),
@@ -761,11 +757,11 @@ class swift_kitten_display_documentation_command(sublime_plugin.TextCommand):
         path = os.path.join(self.get_tokens_path(docset), docs[lang] + ".xml")
 
         # read documentation file
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             xml = f.read()
 
         # convert xml to html
-        html = str(self.convert_docs_to_html(xml), 'utf-8')
+        html = str(self.convert_docs_to_html(xml), "utf-8")
 
         #
         # TO DO:

@@ -17,7 +17,7 @@ free to fork and submit a pull request.
 
 First, make sure to install [SourceKitten](https://github.com/jpsim/SourceKitten.git) !
 
-SwiftKitten is not yet available via Package Control (soon hopefully).
+SwiftKitten is available via Package Control.
 
 To install manually, clone this repository into your packages directory:
 
@@ -215,11 +215,19 @@ console (``ctrl+` ``) and see if any error messages are reported.
 - Parse Xcode project to get file list and embedded frameworks 
 	(similiar to SourceKittenDaemon).
 
+- Add Xcode build, run and debug commands. Build system is not
+	flexible enough. Specify the xcode project in sublime project
+	file. Or if xcode project in same folder as sublime project,
+	use this one as default.
+
 - Build cffi automatically on sublime package install ?
 	I'm not sure if sublime's python interpreter has the
 	necessary tools to build it. Tried briefly but could
 	not get it to work.
 
+- Add support for multiple docsets. Make documentation context
+	aware. Add support for api links, so that documentation 
+	can be navigated.
 
 
 
