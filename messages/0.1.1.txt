@@ -1,0 +1,13 @@
+Changes in 0.1.1
+================
+
+ - Persistant caching of framework globals
+ - Improved performance of framework globals (disabled fuzzy matching)
+ - Added documentation popup (experimental)
+ - Better settings for compiler arguments passed to SourceKitten
+
+Fixes
+=====
+
+ - Fixed importing external frameworks
+ - Build issues with dependencies
